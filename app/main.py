@@ -34,13 +34,16 @@ SessionLocal = make_session_local(engine)
 
 app = FastAPI(title="Gen2 Repair API", version="0.1.0")
 
-# CORS: set your deployed web app origin(s)
+from fastapi.middleware.cors import CORSMiddleware
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten later
-    allow_credentials=True,
+    allow_origins=[
+        "https://small-block-8bd7.william-javanainen.workers.dev",
+    ],
+    allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"],  # includes X-API-Key
 )
 
 def require_api_key(x_api_key: str | None = Header(default=None)):
