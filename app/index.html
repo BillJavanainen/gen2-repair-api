@@ -1,156 +1,697 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gen2 Repair & Configuration Change Form</title>
+  <style>
+    :root { --bg:#0b0f14; --card:#121825; --muted:#8fa0b8; --text:#e8eef8; --line:#233044; --accent:#6ea8fe; }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background:linear-gradient(180deg,#070a0f 0%, #0b0f14 100%); color:var(--text);
+    }
+    header{
+      padding:20px 18px; border-bottom:1px solid var(--line);
+      position:sticky; top:0; background:rgba(11,15,20,.92); backdrop-filter: blur(10px); z-index:10;
+    }
+    .wrap{ max-width:1100px; margin:0 auto; padding:0 14px; }
+    h1{ margin:0 0 6px 0; font-size:18px; font-weight:700; }
+    .sub{ margin:0; color:var(--muted); font-size:12px; }
+    main{ padding:18px 0 40px; }
+    .grid{ display:grid; grid-template-columns:1fr; gap:14px; }
+    @media(min-width:980px){ .grid{ grid-template-columns: 1fr 1fr; } .full{ grid-column:1/-1; } }
+    .card{
+      background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    }
+    .card h2{ margin:0 0 10px 0; font-size:14px; letter-spacing:.2px; }
+    .row{ display:grid; grid-template-columns: 1fr; gap:10px; }
+    @media(min-width:720px){ .row{ grid-template-columns: 1fr 1fr; } }
+    label{ display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
+    input, textarea, select{
+      width:100%; border-radius:10px; border:1px solid var(--line); background:#0b111b; color:var(--text);
+      padding:10px 10px; font-size:13px; outline:none;
+    }
+    textarea{ min-height:90px; resize:vertical; }
+    .btnbar{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+    button{
+      border:1px solid var(--line); background:#0b111b; color:var(--text);
+      padding:9px 11px; border-radius:10px; cursor:pointer; font-size:13px;
+    }
+    button.primary{ background:rgba(110,168,254,.15); border-color:rgba(110,168,254,.35); }
+    button.danger{ background:rgba(255,99,99,.12); border-color:rgba(255,99,99,.3); }
+    button:hover{ border-color:#395072; }
+    .tiny{ font-size:11px; color:var(--muted); }
+    table{ width:100%; border-collapse:collapse; overflow:hidden; border-radius:12px; }
+    th, td{
+      border-bottom:1px solid var(--line); padding:8px 8px; vertical-align:top; font-size:12px;
+    }
+    th{ color:var(--muted); font-weight:600; text-align:left; }
+    tr:last-child td{ border-bottom:none; }
+    .pill{ display:inline-flex; gap:6px; align-items:center; padding:6px 8px; border-radius:999px;
+      border:1px solid var(--line); color:var(--muted); font-size:11px;
+    }
+    .checks{ display:grid; grid-template-columns:1fr; gap:8px; }
+    @media(min-width:720px){ .checks{ grid-template-columns:1fr 1fr; } }
+    .check{
+      display:flex; gap:10px; align-items:flex-start; padding:10px; border:1px solid var(--line);
+      border-radius:12px; background:#0b111b;
+    }
+    .check input{ width:18px; height:18px; margin-top:2px; }
+    .right{ display:flex; gap:10px; align-items:center; justify-content:flex-end; flex-wrap:wrap; }
+    .statusline{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    .hidden{ display:none; }
+    .msg{ margin-top:10px; padding:10px; border:1px solid var(--line); border-radius:12px; background:#0b111b; color:var(--muted); }
+    .ok{ color:#9be9a8; }
+    .bad{ color:#ff9b9b; }
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap statusline">
+    <div>
+      <h1>Gen2 Repair & Configuration Change Form</h1>
+      <p class="sub">Autosaves locally • Export JSON/CSV • Import JSON • Submit to DB</p>
+    </div>
+    <div class="right">
+      <span id="savePill" class="pill">● <span class="mono" id="saveState">saved</span></span>
+
+      <input id="apiBase" style="width:320px" value="https://gen2-repair-api-3.onrender.com" />
+      <input id="apiKey" style="width:260px" value="some-long-random-string" />
+
+      <button class="primary" id="submitDbBtn">Submit to Database</button>
+      <button class="danger" id="resetBtn" title="Clear local draft">Reset Draft</button>
+      <button class="primary" id="exportJsonBtn">Export JSON</button>
+      <button id="importJsonBtn">Import JSON</button>
+      <input type="file" id="importFile" class="hidden" accept="application/json" />
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="grid">
+
+    <section class="card full">
+      <h2>0) Status</h2>
+      <div class="btnbar">
+        <button id="pingDocsBtn">Open Swagger</button>
+        <button id="pingRepairsBtn">Test /repairs (GET)</button>
+      </div>
+      <div id="statusBox" class="msg">Ready.</div>
+    </section>
+
+    <section class="card">
+      <h2>1) Vessel Information</h2>
+      <div class="row">
+        <div>
+          <label>Hull ID (R###)</label>
+          <input id="hullId" placeholder="R132" />
+        </div>
+        <div>
+          <label>Location</label>
+          <input id="location" placeholder="Rumford / Spaceport / Field Site" />
+        </div>
+        <div>
+          <label>Date Opened</label>
+          <input id="dateOpened" type="date" />
+        </div>
+        <div>
+          <label>Work Order / Ticket #</label>
+          <input id="ticket" placeholder="OPS-#### / JIRA / Email thread" />
+        </div>
+        <div>
+          <label>Technician(s)</label>
+          <input id="techs" placeholder="Name(s)" />
+        </div>
+        <div>
+          <label>Mission / Program</label>
+          <input id="program" placeholder="SCUS / BlueTide / Test" />
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>2) Reason for Service</h2>
+      <div class="row">
+        <div>
+          <label>Service Type</label>
+          <select id="serviceType">
+            <option value="">—</option>
+            <option>Failure</option>
+            <option>Preventative Maintenance</option>
+            <option>Upgrade</option>
+            <option>Investigation / Troubleshooting</option>
+            <option>Configuration Standardization</option>
+            <option>Post-Incident Repair</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label>Root Cause Category</label>
+          <select id="rootCauseCat">
+            <option value="">—</option>
+            <option>Electrical</option>
+            <option>Mechanical</option>
+            <option>Corrosion</option>
+            <option>Firmware</option>
+            <option>Configuration</option>
+            <option>Installation Error</option>
+            <option>Water Ingress</option>
+            <option>Unknown</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:10px">
+        <label>Reported Issue / Description</label>
+        <textarea id="issueDesc" placeholder="Symptoms, conditions, logs, UI errors..."></textarea>
+      </div>
+      <div style="margin-top:10px">
+        <label>Root Cause Details (if determined)</label>
+        <textarea id="rootCauseDetails" placeholder="What was wrong and why?"></textarea>
+      </div>
+    </section>
+
+    <section class="card full">
+      <h2>3) Component Change Log</h2>
+
+      <div class="row">
+        <div>
+          <label>Subsystem</label>
+          <select id="chgSubsystem">
+            <option value="">—</option>
+            <option>Ilmor</option>
+            <option>ICU</option>
+            <option>HMI Box</option>
+            <option>Kitbox</option>
+            <option>Orca</option>
+            <option>Battery</option>
+            <option>PDB</option>
+            <option>MPPT</option>
+            <option>Camera</option>
+            <option>Radar</option>
+            <option>Compass</option>
+            <option>LTE/Starlink</option>
+            <option>Harness/Cabling</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label>Component</label>
+          <input id="chgComponent" placeholder="Outboard / Distribution Board / M12 Cable / etc." />
+        </div>
+        <div>
+          <label>Old Serial #</label>
+          <input id="chgOldSn" placeholder="E700059 / 0000423IL01090 / ..." />
+        </div>
+        <div>
+          <label>New Serial #</label>
+          <input id="chgNewSn" placeholder="E700108 / 0000332IL01090 / ..." />
+        </div>
+        <div>
+          <label>Old FW / SW</label>
+          <input id="chgOldFw" placeholder="1.1.11-b1 / f9acdb55 / ..." />
+        </div>
+        <div>
+          <label>New FW / SW</label>
+          <input id="chgNewFw" placeholder="1.1.11-c.1 / 1749c27c / ..." />
+        </div>
+      </div>
+
+      <div style="margin-top:10px" class="row">
+        <div>
+          <label>Reason for Change</label>
+          <input id="chgReason" placeholder="No RPM, water ingress, corrosion, upgrade, etc." />
+        </div>
+        <div>
+          <label>Date</label>
+          <input id="chgDate" type="date" />
+        </div>
+        <div>
+          <label>Technician</label>
+          <input id="chgTech" placeholder="Name" />
+        </div>
+        <div style="display:flex; align-items:end; gap:8px;">
+          <button class="primary" id="addChangeBtn" style="width:100%;">Add Change</button>
+        </div>
+      </div>
+
+      <div style="overflow:auto; margin-top:10px;">
+        <table id="changesTable">
+          <thead>
+          <tr>
+            <th>#</th>
+            <th>Subsystem</th>
+            <th>Component</th>
+            <th>Old SN</th>
+            <th>New SN</th>
+            <th>Old FW</th>
+            <th>New FW</th>
+            <th>Reason</th>
+            <th>Date</th>
+            <th>Tech</th>
+            <th></th>
+          </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card full">
+      <h2>4) Configuration & Parameter Changes (Non-Hardware)</h2>
+
+      <div class="row">
+        <div>
+          <label>System</label>
+          <select id="cfgSystem">
+            <option value="">—</option>
+            <option>Ilmor</option>
+            <option>ArduPilot</option>
+            <option>Balena</option>
+            <option>Orca</option>
+            <option>Mission Planner</option>
+            <option>Kitbox</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label>Parameter / Setting</label>
+          <input id="cfgParam" placeholder="ESTOP pins / BTN param / ..." />
+        </div>
+        <div>
+          <label>Old Value</label>
+          <input id="cfgOld" placeholder="50" />
+        </div>
+        <div>
+          <label>New Value</label>
+          <input id="cfgNew" placeholder="51" />
+        </div>
+        <div>
+          <label>Reason</label>
+          <input id="cfgReason" placeholder="Phantom estop mitigation, unlock power, etc." />
+        </div>
+        <div style="display:flex; align-items:end;">
+          <button class="primary" id="addCfgBtn" style="width:100%;">Add Config Change</button>
+        </div>
+      </div>
+
+      <div style="overflow:auto; margin-top:10px;">
+        <table id="cfgTable">
+          <thead>
+          <tr>
+            <th>#</th>
+            <th>System</th>
+            <th>Parameter</th>
+            <th>Old</th>
+            <th>New</th>
+            <th>Reason</th>
+            <th></th>
+          </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+</main>
+
 <script>
+  const LS_KEY = "gen2_repair_form_v1";
 
-const API_BASE = "https://gen2-repair-api-3.onrender.com";
-const API_KEY = "some-long-random-string";
+  // IMPORTANT: Default values (editable in header fields)
+  const DEFAULT_API_BASE = "https://gen2-repair-api-3.onrender.com";
+  const DEFAULT_API_KEY  = "some-long-random-string";
 
-async function apiFetch(path, method, body){
-  const res = await fetch(API_BASE + path, {
-    method: method,
-    headers: {
-      "Content-Type": "application/json",
-      "X-API-Key": API_KEY
-    },
-    body: body ? JSON.stringify(body) : null
-  });
+  const checklistItems = [
+    "No battery faults","Ilmor powers on","No inverter errors","ICU responsive","HMI operational",
+    "Trim functional","Action button functional","E-stop verified","Telemetry reporting","Manual RPM test"
+  ];
 
-  const text = await res.text();
-  let data;
-  try { data = JSON.parse(text); } catch { data = text; }
+  const el = (id) => document.getElementById(id);
+  const saveState = el("saveState");
+  const savePill = el("savePill");
+  const statusBox = document.getElementById("statusBox");
 
-  if (!res.ok) {
-    throw new Error(typeof data === "string" ? data : JSON.stringify(data));
+  const state = {
+    meta: {},
+    componentChanges: [],
+    configChanges: [],
+    checklist: {},
+  };
+
+  function setStatus(msg, ok=true){
+    statusBox.innerHTML = msg;
+    statusBox.className = "msg " + (ok ? "ok" : "bad");
   }
-  return data;
-}
-const state = {
-  componentChanges: [],
-  configChanges: []
-};
 
-function el(id){ return document.getElementById(id); }
-
-function getApiBase(){
-  return el("apiBase").value.trim().replace(/\/+$/, "");
-}
-
-function getApiKey(){
-  return el("apiKey").value.trim();
-}
-
-async function apiFetch(path, method, body){
-  const res = await fetch(getApiBase() + path, {
-    method: method,
-    headers: {
-      "Content-Type": "application/json",
-      "X-API-Key": getApiKey()
-    },
-    body: body ? JSON.stringify(body) : null
-  });
-
-  const text = await res.text();
-  let data;
-  try { data = JSON.parse(text); } catch { data = text; }
-
-  if (!res.ok) {
-    throw new Error(typeof data === "string" ? data : JSON.stringify(data));
+  function nowISODate() {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   }
-  return data;
-}
 
-function renderChanges(){
-  const tbody = el("changesTable").querySelector("tbody");
-  tbody.innerHTML="";
-  state.componentChanges.forEach((c,i)=>{
-    tbody.innerHTML += `
-      <tr>
-        <td>${i+1}</td>
-        <td>${c.subsystem}</td>
-        <td>${c.component}</td>
-        <td>${c.oldSn}</td>
-        <td>${c.newSn}</td>
-      </tr>`;
-  });
-}
+  function markSaving() {
+    saveState.textContent = "saving…";
+    savePill.style.borderColor = "rgba(110,168,254,.35)";
+  }
+  function markSaved() {
+    saveState.textContent = "saved";
+    savePill.style.borderColor = "var(--line)";
+  }
 
-function renderCfg(){
-  const tbody = el("cfgTable").querySelector("tbody");
-  tbody.innerHTML="";
-  state.configChanges.forEach((c,i)=>{
-    tbody.innerHTML += `
-      <tr>
-        <td>${i+1}</td>
-        <td>${c.system}</td>
-        <td>${c.param}</td>
-      </tr>`;
-  });
-}
+  function gatherMeta() {
+    return {
+      hullId: el("hullId").value.trim(),
+      location: el("location").value.trim(),
+      dateOpened: el("dateOpened").value,
+      ticket: el("ticket").value.trim(),
+      techs: el("techs").value.trim(),
+      program: el("program").value.trim(),
+      serviceType: el("serviceType").value,
+      rootCauseCat: el("rootCauseCat").value,
+      issueDesc: el("issueDesc").value.trim(),
+      rootCauseDetails: el("rootCauseDetails").value.trim(),
+      updatedAt: new Date().toISOString()
+    };
+  }
 
-el("addChangeBtn").onclick = ()=>{
-  state.componentChanges.push({
-    subsystem:el("chgSubsystem").value,
-    component:el("chgComponent").value,
-    oldSn:el("chgOldSn").value,
-    newSn:el("chgNewSn").value,
-    oldFw:el("chgOldFw").value,
-    newFw:el("chgNewFw").value,
-    reason:el("chgReason").value,
-    tech:el("chgTech").value
-  });
-  renderChanges();
-};
+  function applyMeta(meta) {
+    el("hullId").value = meta.hullId || "";
+    el("location").value = meta.location || "";
+    el("dateOpened").value = meta.dateOpened || "";
+    el("ticket").value = meta.ticket || "";
+    el("techs").value = meta.techs || "";
+    el("program").value = meta.program || "";
+    el("serviceType").value = meta.serviceType || "";
+    el("rootCauseCat").value = meta.rootCauseCat || "";
+    el("issueDesc").value = meta.issueDesc || "";
+    el("rootCauseDetails").value = meta.rootCauseDetails || "";
+  }
 
-el("addCfgBtn").onclick = ()=>{
-  state.configChanges.push({
-    system:el("cfgSystem").value,
-    param:el("cfgParam").value,
-    oldVal:el("cfgOld").value,
-    newVal:el("cfgNew").value,
-    reason:el("cfgReason").value
-  });
-  renderCfg();
-};
+  function saveToLocal() {
+    markSaving();
+    state.meta = gatherMeta();
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+    setTimeout(markSaved, 120);
+  }
 
-el("submitDbBtn").onclick = async ()=>{
-  try{
-    const repair = await apiFetch("/repairs","POST",{
-      hull_id: el("hullId").value,
-      date_opened: el("dateOpened").value,
-      location: el("location").value,
-      technicians: el("techs").value,
-      service_type: el("serviceType").value,
-      issue_desc: el("issueDesc").value
+  function loadFromLocal() {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return false;
+    try {
+      const data = JSON.parse(raw);
+      Object.assign(state, data);
+      applyMeta(state.meta || {});
+      renderAll();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function renderChanges() {
+    const tbody = el("changesTable").querySelector("tbody");
+    tbody.innerHTML = "";
+    state.componentChanges.forEach((c, idx) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="mono">${idx+1}</td>
+        <td>${c.subsystem || ""}</td>
+        <td>${c.component || ""}</td>
+        <td class="mono">${c.oldSn || ""}</td>
+        <td class="mono">${c.newSn || ""}</td>
+        <td class="mono">${c.oldFw || ""}</td>
+        <td class="mono">${c.newFw || ""}</td>
+        <td>${c.reason || ""}</td>
+        <td class="mono">${c.date || ""}</td>
+        <td>${c.tech || ""}</td>
+        <td><button class="danger" data-del="${idx}">Delete</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll("button[data-del]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const i = Number(btn.getAttribute("data-del"));
+        state.componentChanges.splice(i, 1);
+        renderChanges();
+        saveToLocal();
+      });
+    });
+  }
+
+  function renderCfg() {
+    const tbody = el("cfgTable").querySelector("tbody");
+    tbody.innerHTML = "";
+    state.configChanges.forEach((c, idx) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="mono">${idx+1}</td>
+        <td>${c.system || ""}</td>
+        <td class="mono">${c.param || ""}</td>
+        <td class="mono">${c.oldVal || ""}</td>
+        <td class="mono">${c.newVal || ""}</td>
+        <td>${c.reason || ""}</td>
+        <td><button class="danger" data-del="${idx}">Delete</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll("button[data-del]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const i = Number(btn.getAttribute("data-del"));
+        state.configChanges.splice(i, 1);
+        renderCfg();
+        saveToLocal();
+      });
+    });
+  }
+
+  function renderAll() {
+    renderChanges();
+    renderCfg();
+  }
+
+  function addComponentChange() {
+    const entry = {
+      subsystem: el("chgSubsystem").value,
+      component: el("chgComponent").value.trim(),
+      oldSn: el("chgOldSn").value.trim(),
+      newSn: el("chgNewSn").value.trim(),
+      oldFw: el("chgOldFw").value.trim(),
+      newFw: el("chgNewFw").value.trim(),
+      reason: el("chgReason").value.trim(),
+      date: el("chgDate").value || nowISODate(),
+      tech: el("chgTech").value.trim(),
+    };
+    if (!entry.subsystem && !entry.component) return alert("Add at least a subsystem or component.");
+    state.componentChanges.unshift(entry);
+    renderChanges();
+    saveToLocal();
+    el("chgComponent").value = "";
+    el("chgOldSn").value = "";
+    el("chgNewSn").value = "";
+    el("chgOldFw").value = "";
+    el("chgNewFw").value = "";
+    el("chgReason").value = "";
+    el("chgTech").value = "";
+  }
+
+  function addCfgChange() {
+    const entry = {
+      system: el("cfgSystem").value,
+      param: el("cfgParam").value.trim(),
+      oldVal: el("cfgOld").value.trim(),
+      newVal: el("cfgNew").value.trim(),
+      reason: el("cfgReason").value.trim(),
+    };
+    if (!entry.system && !entry.param) return alert("Add at least a system or parameter.");
+    state.configChanges.unshift(entry);
+    renderCfg();
+    saveToLocal();
+    el("cfgParam").value = "";
+    el("cfgOld").value = "";
+    el("cfgNew").value = "";
+    el("cfgReason").value = "";
+  }
+
+  function getApiBase(){
+    const v = (el("apiBase")?.value || DEFAULT_API_BASE).trim();
+    return v.replace(/\/+$/, "");
+  }
+  function getApiKey(){
+    return (el("apiKey")?.value || DEFAULT_API_KEY).trim();
+  }
+
+  async function apiFetch(path, { method="GET", body=null } = {}) {
+    const API_BASE = getApiBase();
+    const API_KEY  = getApiKey();
+    const res = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": API_KEY
+      },
+      body: body ? JSON.stringify(body) : null
     });
 
-    const uid = repair.repair_uid;
-    if(!uid) throw new Error("repair_uid missing from response");
+    const text = await res.text();
+    let data;
+    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
 
-    for(const c of state.configChanges){
-      await apiFetch(`/repairs/${uid}/config-changes`,"POST",{
-        system:c.system,
-        parameter:c.param,
-        old_value:c.oldVal,
-        new_value:c.newVal,
-        notes:c.reason
-      });
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${typeof data === "string" ? data : JSON.stringify(data)}`);
     }
-
-    for(const c of state.componentChanges){
-      await apiFetch(`/repairs/${uid}/component-changes`,"POST",{
-        subsystem:c.subsystem,
-        component:c.component,
-        old_serial:c.oldSn,
-        new_serial:c.newSn,
-        old_fw:c.oldFw,
-        new_fw:c.newFw,
-        reason:c.reason,
-        performed_by:c.tech
-      });
-    }
-
-    alert("Submitted successfully.");
-  }catch(e){
-    alert("Error: " + e.message);
-    console.error(e);
+    return data;
   }
-};
+
+  async function submitToDatabase(){
+    const m = gatherMeta();
+    if (!m.hullId) return alert("Hull ID is required.");
+    if (!m.dateOpened) return alert("Date Opened is required.");
+
+    setStatus("Submitting repair...", true);
+
+    // Create repair (minimal schema that your API accepts)
+    const created = await apiFetch("/repairs", {
+      method: "POST",
+      body: {
+        hull_id: m.hullId,
+        date_opened: m.dateOpened,
+        location: m.location || null,
+        technicians: m.techs || null,
+        service_type: m.serviceType || null,
+        issue_desc: m.issueDesc || null
+      }
+    });
+
+    const repairUid = created.repair_uid;
+    if (!repairUid) throw new Error("Missing repair_uid from create response.");
+    setStatus(`Repair created: <span class="mono">${repairUid}</span>. Submitting config changes...`, true);
+
+    for (const c of state.configChanges) {
+      await apiFetch(`/repairs/${encodeURIComponent(repairUid)}/config-changes`, {
+        method: "POST",
+        body: {
+          system: c.system || null,
+          parameter: c.param || null,
+          old_value: c.oldVal || null,
+          new_value: c.newVal || null,
+          notes: c.reason || null
+        }
+      });
+    }
+
+    setStatus(`Config changes submitted. Submitting component changes...`, true);
+
+    for (const c of state.componentChanges) {
+      await apiFetch(`/repairs/${encodeURIComponent(repairUid)}/component-changes`, {
+        method: "POST",
+        body: {
+          subsystem: c.subsystem || null,
+          component: c.component || null,
+          old_serial: c.oldSn || null,
+          new_serial: c.newSn || null,
+          old_fw: c.oldFw || null,
+          new_fw: c.newFw || null,
+          reason: c.reason || null,
+          change_date: c.date || null,
+          performed_by: c.tech || null
+        }
+      });
+    }
+
+    setStatus(`✅ Submitted successfully. Repair UID: <span class="mono">${repairUid}</span>`, true);
+    alert(`Submitted ✅ Repair UID: ${repairUid}`);
+  }
+
+  function resetDraft() {
+    if (!confirm("Clear the saved draft in this browser?")) return;
+    localStorage.removeItem(LS_KEY);
+    location.reload();
+  }
+
+  function wireAutosave() {
+    const ids = ["hullId","location","dateOpened","ticket","techs","program","serviceType","rootCauseCat","issueDesc","rootCauseDetails"];
+    ids.forEach(id => {
+      const node = el(id);
+      node.addEventListener("input", saveToLocal);
+      node.addEventListener("change", saveToLocal);
+    });
+  }
+
+  // init
+  (function init(){
+    if (!el("dateOpened").value) el("dateOpened").value = nowISODate();
+    el("apiBase").value = DEFAULT_API_BASE;
+    el("apiKey").value  = DEFAULT_API_KEY;
+
+    if (!loadFromLocal()) {
+      checklistItems.forEach(i => state.checklist[i] = false);
+      saveToLocal();
+      renderAll();
+    }
+
+    wireAutosave();
+    el("addChangeBtn").addEventListener("click", addComponentChange);
+    el("addCfgBtn").addEventListener("click", addCfgChange);
+    el("resetBtn").addEventListener("click", resetDraft);
+
+    el("submitDbBtn").addEventListener("click", () => {
+      submitToDatabase().catch(e => {
+        console.error(e);
+        setStatus(`❌ Submit failed: <span class="mono">${e.message}</span>`, false);
+        alert(e.message);
+      });
+    });
+
+    el("exportJsonBtn").addEventListener("click", () => {
+      const data = { ...state, meta: gatherMeta() };
+      const hull = (data.meta?.hullId || "R###").replaceAll(" ","_");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type:"application/json"}));
+      a.download = `gen2_repair_${hull}_${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+
+    el("importJsonBtn").addEventListener("click", () => el("importFile").click());
+    el("importFile").addEventListener("change", (e) => {
+      const f = e.target.files?.[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try{
+          const data = JSON.parse(reader.result);
+          Object.assign(state, data);
+          applyMeta(state.meta || {});
+          renderAll();
+          saveToLocal();
+          alert("Imported JSON successfully.");
+        }catch{
+          alert("Import failed: invalid JSON.");
+        }
+      };
+      reader.readAsText(f);
+      e.target.value = "";
+    });
+
+    el("pingDocsBtn").addEventListener("click", () => {
+      window.open(getApiBase() + "/docs", "_blank");
+    });
+
+    el("pingRepairsBtn").addEventListener("click", async () => {
+      try{
+        await apiFetch("/repairs", { method:"GET" });
+        setStatus("GET /repairs returned OK (unexpected). If you see this, your GET returns JSON.", true);
+      }catch(e){
+        // 405 is expected if GET isn't implemented
+        setStatus(`GET /repairs test: ${e.message} (405 is OK)`, true);
+      }
+    });
+  })();
 </script>
+</body>
+</html>
