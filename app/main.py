@@ -38,10 +38,12 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=[
+        "https://small-block-8bd7.william-javanainen.workers.dev"
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],  # must allow X-API-Key
+    allow_headers=["*"],
 )
 
 # =====================================================
