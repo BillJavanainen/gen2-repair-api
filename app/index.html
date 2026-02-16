@@ -42,27 +42,17 @@
     button.primary{ background:rgba(110,168,254,.15); border-color:rgba(110,168,254,.35); }
     button.danger{ background:rgba(255,99,99,.12); border-color:rgba(255,99,99,.3); }
     button:hover{ border-color:#395072; }
-    .tiny{ font-size:11px; color:var(--muted); }
-    table{ width:100%; border-collapse:collapse; overflow:hidden; border-radius:12px; }
+    table{ width:100%; border-collapse:collapse; border-radius:12px; }
     th, td{
       border-bottom:1px solid var(--line); padding:8px 8px; vertical-align:top; font-size:12px;
     }
     th{ color:var(--muted); font-weight:600; text-align:left; }
-    tr:last-child td{ border-bottom:none; }
     .pill{ display:inline-flex; gap:6px; align-items:center; padding:6px 8px; border-radius:999px;
       border:1px solid var(--line); color:var(--muted); font-size:11px;
     }
-    .checks{ display:grid; grid-template-columns:1fr; gap:8px; }
-    @media(min-width:720px){ .checks{ grid-template-columns:1fr 1fr; } }
-    .check{
-      display:flex; gap:10px; align-items:flex-start; padding:10px; border:1px solid var(--line);
-      border-radius:12px; background:#0b111b;
-    }
-    .check input{ width:18px; height:18px; margin-top:2px; }
     .right{ display:flex; gap:10px; align-items:center; justify-content:flex-end; flex-wrap:wrap; }
     .statusline{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
-    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
-    .hidden{ display:none; }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
     .msg{ margin-top:10px; padding:10px; border:1px solid var(--line); border-radius:12px; background:#0b111b; color:var(--muted); }
     .ok{ color:#9be9a8; }
     .bad{ color:#ff9b9b; }
@@ -73,19 +63,14 @@
   <div class="wrap statusline">
     <div>
       <h1>Gen2 Repair & Configuration Change Form</h1>
-      <p class="sub">Autosaves locally • Export JSON/CSV • Import JSON • Submit to DB</p>
+      <p class="sub">Autosaves locally • Production API v3 • Database Sync Enabled</p>
     </div>
     <div class="right">
       <span id="savePill" class="pill">● <span class="mono" id="saveState">saved</span></span>
-
-      <input id="apiBase" style="width:320px" value="https://gen2-repair-api-3.onrender.com" />
-      <input id="apiKey" style="width:260px" value="some-long-random-string" />
-
+      <input id="apiBase" style="width:300px" value="https://gen2-repair-api-3.onrender.com" />
+      <input id="apiKey" style="width:240px" type="password" value="some-long-random-string" />
       <button class="primary" id="submitDbBtn">Submit to Database</button>
-      <button class="danger" id="resetBtn" title="Clear local draft">Reset Draft</button>
-      <button class="primary" id="exportJsonBtn">Export JSON</button>
-      <button id="importJsonBtn">Import JSON</button>
-      <input type="file" id="importFile" class="hidden" accept="application/json" />
+      <button class="danger" id="resetBtn">Reset Draft</button>
     </div>
   </div>
 </header>
@@ -94,604 +79,204 @@
   <div class="grid">
 
     <section class="card full">
-      <h2>0) Status</h2>
+      <h2>0) Connectivity Status</h2>
       <div class="btnbar">
-        <button id="pingDocsBtn">Open Swagger</button>
-        <button id="pingRepairsBtn">Test /repairs (GET)</button>
+        <button id="pingDocsBtn">Open API Docs</button>
+        <button id="pingRepairsBtn">Check DB Connection</button>
       </div>
-      <div id="statusBox" class="msg">Ready.</div>
+      <div id="statusBox" class="msg">Awaiting input...</div>
     </section>
 
     <section class="card">
-      <h2>1) Vessel Information</h2>
+      <h2>1) Vessel & Work Info</h2>
       <div class="row">
         <div>
           <label>Hull ID (R###)</label>
-          <input id="hullId" placeholder="R132" />
+          <input id="hullId" placeholder="e.g. R134" />
         </div>
         <div>
           <label>Location</label>
-          <input id="location" placeholder="Rumford / Spaceport / Field Site" />
+          <input id="location" placeholder="Rumford / Field Site" />
         </div>
         <div>
           <label>Date Opened</label>
           <input id="dateOpened" type="date" />
         </div>
         <div>
-          <label>Work Order / Ticket #</label>
-          <input id="ticket" placeholder="OPS-#### / JIRA / Email thread" />
+          <label>Lead Technician(s)</label>
+          <input id="techs" placeholder="Names" />
         </div>
-        <div>
-          <label>Technician(s)</label>
-          <input id="techs" placeholder="Name(s)" />
-        </div>
-        <div>
-          <label>Mission / Program</label>
-          <input id="program" placeholder="SCUS / BlueTide / Test" />
-        </div>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>2) Reason for Service</h2>
-      <div class="row">
-        <div>
+        <div class="full">
           <label>Service Type</label>
           <select id="serviceType">
             <option value="">—</option>
             <option>Failure</option>
             <option>Preventative Maintenance</option>
             <option>Upgrade</option>
-            <option>Investigation / Troubleshooting</option>
-            <option>Configuration Standardization</option>
-            <option>Post-Incident Repair</option>
-            <option>Other</option>
-          </select>
-        </div>
-        <div>
-          <label>Root Cause Category</label>
-          <select id="rootCauseCat">
-            <option value="">—</option>
-            <option>Electrical</option>
-            <option>Mechanical</option>
-            <option>Corrosion</option>
-            <option>Firmware</option>
-            <option>Configuration</option>
-            <option>Installation Error</option>
-            <option>Water Ingress</option>
-            <option>Unknown</option>
+            <option>Standardization</option>
           </select>
         </div>
       </div>
-      <div style="margin-top:10px">
-        <label>Reported Issue / Description</label>
-        <textarea id="issueDesc" placeholder="Symptoms, conditions, logs, UI errors..."></textarea>
-      </div>
-      <div style="margin-top:10px">
-        <label>Root Cause Details (if determined)</label>
-        <textarea id="rootCauseDetails" placeholder="What was wrong and why?"></textarea>
-      </div>
+    </section>
+
+    <section class="card">
+      <h2>2) Issue Description</h2>
+      <textarea id="issueDesc" placeholder="Describe symptoms, conditions, and initial logs..."></textarea>
     </section>
 
     <section class="card full">
-      <h2>3) Component Change Log</h2>
-
+      <h2>3) Hardware Component Swaps</h2>
       <div class="row">
-        <div>
-          <label>Subsystem</label>
-          <select id="chgSubsystem">
-            <option value="">—</option>
-            <option>Ilmor</option>
-            <option>ICU</option>
-            <option>HMI Box</option>
-            <option>Kitbox</option>
-            <option>Orca</option>
-            <option>Battery</option>
-            <option>PDB</option>
-            <option>MPPT</option>
-            <option>Camera</option>
-            <option>Radar</option>
-            <option>Compass</option>
-            <option>LTE/Starlink</option>
-            <option>Harness/Cabling</option>
-            <option>Other</option>
-          </select>
-        </div>
-        <div>
-          <label>Component</label>
-          <input id="chgComponent" placeholder="Outboard / Distribution Board / M12 Cable / etc." />
-        </div>
-        <div>
-          <label>Old Serial #</label>
-          <input id="chgOldSn" placeholder="E700059 / 0000423IL01090 / ..." />
-        </div>
-        <div>
-          <label>New Serial #</label>
-          <input id="chgNewSn" placeholder="E700108 / 0000332IL01090 / ..." />
-        </div>
-        <div>
-          <label>Old FW / SW</label>
-          <input id="chgOldFw" placeholder="1.1.11-b1 / f9acdb55 / ..." />
-        </div>
-        <div>
-          <label>New FW / SW</label>
-          <input id="chgNewFw" placeholder="1.1.11-c.1 / 1749c27c / ..." />
-        </div>
+        <select id="chgSubsystem">
+          <option value="">Select Subsystem—</option>
+          <option>Ilmor</option><option>ICU</option><option>Orca</option><option>Starlink</option>
+        </select>
+        <input id="chgComponent" placeholder="Specific Component" />
+        <input id="chgOldSn" placeholder="Old Serial #" />
+        <input id="chgNewSn" placeholder="New Serial #" />
+        <input id="chgReason" placeholder="Reason for swap" />
+        <button class="primary" id="addChangeBtn">Add to Swap Log</button>
       </div>
 
-      <div style="margin-top:10px" class="row">
-        <div>
-          <label>Reason for Change</label>
-          <input id="chgReason" placeholder="No RPM, water ingress, corrosion, upgrade, etc." />
-        </div>
-        <div>
-          <label>Date</label>
-          <input id="chgDate" type="date" />
-        </div>
-        <div>
-          <label>Technician</label>
-          <input id="chgTech" placeholder="Name" />
-        </div>
-        <div style="display:flex; align-items:end; gap:8px;">
-          <button class="primary" id="addChangeBtn" style="width:100%;">Add Change</button>
-        </div>
-      </div>
-
-      <div style="overflow:auto; margin-top:10px;">
-        <table id="changesTable">
-          <thead>
-          <tr>
-            <th>#</th>
-            <th>Subsystem</th>
-            <th>Component</th>
-            <th>Old SN</th>
-            <th>New SN</th>
-            <th>Old FW</th>
-            <th>New FW</th>
-            <th>Reason</th>
-            <th>Date</th>
-            <th>Tech</th>
-            <th></th>
-          </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
+      <table id="changesTable" style="margin-top:15px">
+        <thead>
+          <tr><th>Subsystem</th><th>Component</th><th>Old SN</th><th>New SN</th><th>Action</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </section>
 
     <section class="card full">
-      <h2>4) Configuration & Parameter Changes (Non-Hardware)</h2>
-
+      <h2>4) Configuration Changes</h2>
       <div class="row">
-        <div>
-          <label>System</label>
-          <select id="cfgSystem">
-            <option value="">—</option>
-            <option>Ilmor</option>
-            <option>ArduPilot</option>
-            <option>Balena</option>
-            <option>Orca</option>
-            <option>Mission Planner</option>
-            <option>Kitbox</option>
-            <option>Other</option>
-          </select>
-        </div>
-        <div>
-          <label>Parameter / Setting</label>
-          <input id="cfgParam" placeholder="ESTOP pins / BTN param / ..." />
-        </div>
-        <div>
-          <label>Old Value</label>
-          <input id="cfgOld" placeholder="50" />
-        </div>
-        <div>
-          <label>New Value</label>
-          <input id="cfgNew" placeholder="51" />
-        </div>
-        <div>
-          <label>Reason</label>
-          <input id="cfgReason" placeholder="Phantom estop mitigation, unlock power, etc." />
-        </div>
-        <div style="display:flex; align-items:end;">
-          <button class="primary" id="addCfgBtn" style="width:100%;">Add Config Change</button>
-        </div>
+        <select id="cfgSystem">
+          <option value="">Select System—</option>
+          <option>ArduPilot</option><option>Balena</option><option>Ilmor Config</option>
+        </select>
+        <input id="cfgParam" placeholder="Parameter Name" />
+        <input id="cfgOld" placeholder="Old Value" />
+        <input id="cfgNew" placeholder="New Value" />
+        <input id="cfgReason" placeholder="Reason / Notes" />
+        <button class="primary" id="addCfgBtn">Add to Config Log</button>
       </div>
 
-      <div style="overflow:auto; margin-top:10px;">
-        <table id="cfgTable">
-          <thead>
-          <tr>
-            <th>#</th>
-            <th>System</th>
-            <th>Parameter</th>
-            <th>Old</th>
-            <th>New</th>
-            <th>Reason</th>
-            <th></th>
-          </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
+      <table id="cfgTable" style="margin-top:15px">
+        <thead>
+          <tr><th>System</th><th>Parameter</th><th>Old</th><th>New</th><th>Action</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </section>
-
   </div>
 </main>
 
 <script>
-  const LS_KEY = "gen2_repair_form_v1";
-
-  // IMPORTANT: Default values (editable in header fields)
-  const DEFAULT_API_BASE = "https://gen2-repair-api-3.onrender.com";
-  const DEFAULT_API_KEY  = "some-long-random-string";
-
-  const checklistItems = [
-    "No battery faults","Ilmor powers on","No inverter errors","ICU responsive","HMI operational",
-    "Trim functional","Action button functional","E-stop verified","Telemetry reporting","Manual RPM test"
-  ];
-
+  const LS_KEY = "gen2_repair_v3";
   const el = (id) => document.getElementById(id);
-  const saveState = el("saveState");
-  const savePill = el("savePill");
-  const statusBox = document.getElementById("statusBox");
+  const state = { meta: {}, componentChanges: [], configChanges: [] };
 
-  const state = {
-    meta: {},
-    componentChanges: [],
-    configChanges: [],
-    checklist: {},
-  };
-
-  function setStatus(msg, ok=true){
-    statusBox.innerHTML = msg;
-    statusBox.className = "msg " + (ok ? "ok" : "bad");
-  }
-
-  function nowISODate() {
-    const d = new Date();
-    const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  }
-
-  function markSaving() {
-    saveState.textContent = "saving…";
-    savePill.style.borderColor = "rgba(110,168,254,.35)";
-  }
-  function markSaved() {
-    saveState.textContent = "saved";
-    savePill.style.borderColor = "var(--line)";
-  }
-
-  function gatherMeta() {
-    return {
-      hullId: el("hullId").value.trim(),
-      location: el("location").value.trim(),
-      dateOpened: el("dateOpened").value,
-      ticket: el("ticket").value.trim(),
-      techs: el("techs").value.trim(),
-      program: el("program").value.trim(),
-      serviceType: el("serviceType").value,
-      rootCauseCat: el("rootCauseCat").value,
-      issueDesc: el("issueDesc").value.trim(),
-      rootCauseDetails: el("rootCauseDetails").value.trim(),
-      updatedAt: new Date().toISOString()
-    };
-  }
-
-  function applyMeta(meta) {
-    el("hullId").value = meta.hullId || "";
-    el("location").value = meta.location || "";
-    el("dateOpened").value = meta.dateOpened || "";
-    el("ticket").value = meta.ticket || "";
-    el("techs").value = meta.techs || "";
-    el("program").value = meta.program || "";
-    el("serviceType").value = meta.serviceType || "";
-    el("rootCauseCat").value = meta.rootCauseCat || "";
-    el("issueDesc").value = meta.issueDesc || "";
-    el("rootCauseDetails").value = meta.rootCauseDetails || "";
+  function setStatus(msg, ok=true) {
+    el("statusBox").innerHTML = msg;
+    el("statusBox").className = "msg " + (ok ? "ok" : "bad");
   }
 
   function saveToLocal() {
-    markSaving();
-    state.meta = gatherMeta();
+    state.meta = {
+      hull_id: el("hullId").value,
+      location: el("location").value,
+      date_opened: el("dateOpened").value,
+      technicians: el("techs").value,
+      service_type: el("serviceType").value,
+      issue_desc: el("issueDesc").value
+    };
     localStorage.setItem(LS_KEY, JSON.stringify(state));
-    setTimeout(markSaved, 120);
+    el("saveState").textContent = "saved";
   }
 
-  function loadFromLocal() {
+  function loadLocal() {
     const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return false;
-    try {
-      const data = JSON.parse(raw);
-      Object.assign(state, data);
-      applyMeta(state.meta || {});
-      renderAll();
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  function renderChanges() {
-    const tbody = el("changesTable").querySelector("tbody");
-    tbody.innerHTML = "";
-    state.componentChanges.forEach((c, idx) => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="mono">${idx+1}</td>
-        <td>${c.subsystem || ""}</td>
-        <td>${c.component || ""}</td>
-        <td class="mono">${c.oldSn || ""}</td>
-        <td class="mono">${c.newSn || ""}</td>
-        <td class="mono">${c.oldFw || ""}</td>
-        <td class="mono">${c.newFw || ""}</td>
-        <td>${c.reason || ""}</td>
-        <td class="mono">${c.date || ""}</td>
-        <td>${c.tech || ""}</td>
-        <td><button class="danger" data-del="${idx}">Delete</button></td>
-      `;
-      tbody.appendChild(tr);
-    });
-    tbody.querySelectorAll("button[data-del]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const i = Number(btn.getAttribute("data-del"));
-        state.componentChanges.splice(i, 1);
-        renderChanges();
-        saveToLocal();
-      });
-    });
-  }
-
-  function renderCfg() {
-    const tbody = el("cfgTable").querySelector("tbody");
-    tbody.innerHTML = "";
-    state.configChanges.forEach((c, idx) => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="mono">${idx+1}</td>
-        <td>${c.system || ""}</td>
-        <td class="mono">${c.param || ""}</td>
-        <td class="mono">${c.oldVal || ""}</td>
-        <td class="mono">${c.newVal || ""}</td>
-        <td>${c.reason || ""}</td>
-        <td><button class="danger" data-del="${idx}">Delete</button></td>
-      `;
-      tbody.appendChild(tr);
-    });
-    tbody.querySelectorAll("button[data-del]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const i = Number(btn.getAttribute("data-del"));
-        state.configChanges.splice(i, 1);
-        renderCfg();
-        saveToLocal();
-      });
-    });
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    Object.assign(state, data);
+    el("hullId").value = state.meta.hull_id || "";
+    el("location").value = state.meta.location || "";
+    el("dateOpened").value = state.meta.date_opened || "";
+    el("techs").value = state.meta.technicians || "";
+    el("serviceType").value = state.meta.service_type || "";
+    el("issueDesc").value = state.meta.issue_desc || "";
+    renderAll();
   }
 
   function renderAll() {
-    renderChanges();
-    renderCfg();
+    el("changesTable").querySelector("tbody").innerHTML = state.componentChanges.map((c, i) => `
+      <tr><td>${c.subsystem}</td><td>${c.component}</td><td>${c.old_serial}</td><td>${c.new_serial}</td>
+      <td><button onclick="removeIdx('comp', ${i})">Del</button></td></tr>`).join('');
+    
+    el("cfgTable").querySelector("tbody").innerHTML = state.configChanges.map((c, i) => `
+      <tr><td>${c.system}</td><td>${c.parameter}</td><td>${c.old_value}</td><td>${c.new_value}</td>
+      <td><button onclick="removeIdx('cfg', ${i})">Del</button></td></tr>`).join('');
   }
 
-  function addComponentChange() {
-    const entry = {
+  function removeIdx(type, i) {
+    if(type==='comp') state.componentChanges.splice(i,1);
+    else state.configChanges.splice(i,1);
+    renderAll(); saveToLocal();
+  }
+
+  el("addChangeBtn").onclick = () => {
+    state.componentChanges.push({
       subsystem: el("chgSubsystem").value,
-      component: el("chgComponent").value.trim(),
-      oldSn: el("chgOldSn").value.trim(),
-      newSn: el("chgNewSn").value.trim(),
-      oldFw: el("chgOldFw").value.trim(),
-      newFw: el("chgNewFw").value.trim(),
-      reason: el("chgReason").value.trim(),
-      date: el("chgDate").value || nowISODate(),
-      tech: el("chgTech").value.trim(),
-    };
-    if (!entry.subsystem && !entry.component) return alert("Add at least a subsystem or component.");
-    state.componentChanges.unshift(entry);
-    renderChanges();
-    saveToLocal();
-    el("chgComponent").value = "";
-    el("chgOldSn").value = "";
-    el("chgNewSn").value = "";
-    el("chgOldFw").value = "";
-    el("chgNewFw").value = "";
-    el("chgReason").value = "";
-    el("chgTech").value = "";
-  }
+      component: el("chgComponent").value,
+      old_serial: el("chgOldSn").value,
+      new_serial: el("chgNewSn").value,
+      reason: el("chgReason").value,
+      change_date: el("dateOpened").value,
+      performed_by: el("techs").value
+    });
+    renderAll(); saveToLocal();
+  };
 
-  function addCfgChange() {
-    const entry = {
+  el("addCfgBtn").onclick = () => {
+    state.configChanges.push({
       system: el("cfgSystem").value,
-      param: el("cfgParam").value.trim(),
-      oldVal: el("cfgOld").value.trim(),
-      newVal: el("cfgNew").value.trim(),
-      reason: el("cfgReason").value.trim(),
-    };
-    if (!entry.system && !entry.param) return alert("Add at least a system or parameter.");
-    state.configChanges.unshift(entry);
-    renderCfg();
-    saveToLocal();
-    el("cfgParam").value = "";
-    el("cfgOld").value = "";
-    el("cfgNew").value = "";
-    el("cfgReason").value = "";
-  }
+      parameter: el("cfgParam").value,
+      old_value: el("cfgOld").value,
+      new_value: el("cfgNew").value,
+      notes: el("cfgReason").value
+    });
+    renderAll(); saveToLocal();
+  };
 
-  function getApiBase(){
-    const v = (el("apiBase")?.value || DEFAULT_API_BASE).trim();
-    return v.replace(/\/+$/, "");
-  }
-  function getApiKey(){
-    return (el("apiKey")?.value || DEFAULT_API_KEY).trim();
-  }
-
-  async function apiFetch(path, { method="GET", body=null } = {}) {
-    const API_BASE = getApiBase();
-    const API_KEY  = getApiKey();
-    const res = await fetch(`${API_BASE}${path}`, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": API_KEY
-      },
+  async function apiFetch(path, method, body) {
+    const res = await fetch(el("apiBase").value + path, {
+      method: method,
+      headers: { "Content-Type": "application/json", "X-API-Key": el("apiKey").value },
       body: body ? JSON.stringify(body) : null
     });
-
-    const text = await res.text();
-    let data;
-    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}: ${typeof data === "string" ? data : JSON.stringify(data)}`);
-    }
-    return data;
+    if(!res.ok) throw new Error(await res.text());
+    return res.json();
   }
 
-  async function submitToDatabase(){
-    const m = gatherMeta();
-    if (!m.hullId) return alert("Hull ID is required.");
-    if (!m.dateOpened) return alert("Date Opened is required.");
+  el("submitDbBtn").onclick = async () => {
+    try {
+      setStatus("Syncing...");
+      const repair = await apiFetch("/repairs", "POST", state.meta);
+      const uid = repair.repair_uid;
+      
+      for(const c of state.componentChanges) await apiFetch(`/repairs/${uid}/component-changes`, "POST", c);
+      for(const c of state.configChanges) await apiFetch(`/repairs/${uid}/config-changes`, "POST", c);
+      
+      setStatus("✅ Successfully submitted to Database.");
+      alert("Submission Complete!");
+    } catch(e) { setStatus("❌ Error: " + e.message, false); }
+  };
 
-    setStatus("Submitting repair...", true);
-
-    // Create repair (minimal schema that your API accepts)
-    const created = await apiFetch("/repairs", {
-      method: "POST",
-      body: {
-        hull_id: m.hullId,
-        date_opened: m.dateOpened,
-        location: m.location || null,
-        technicians: m.techs || null,
-        service_type: m.serviceType || null,
-        issue_desc: m.issueDesc || null
-      }
-    });
-
-    const repairUid = created.repair_uid;
-    if (!repairUid) throw new Error("Missing repair_uid from create response.");
-    setStatus(`Repair created: <span class="mono">${repairUid}</span>. Submitting config changes...`, true);
-
-    for (const c of state.configChanges) {
-      await apiFetch(`/repairs/${encodeURIComponent(repairUid)}/config-changes`, {
-        method: "POST",
-        body: {
-          system: c.system || null,
-          parameter: c.param || null,
-          old_value: c.oldVal || null,
-          new_value: c.newVal || null,
-          notes: c.reason || null
-        }
-      });
-    }
-
-    setStatus(`Config changes submitted. Submitting component changes...`, true);
-
-    for (const c of state.componentChanges) {
-      await apiFetch(`/repairs/${encodeURIComponent(repairUid)}/component-changes`, {
-        method: "POST",
-        body: {
-          subsystem: c.subsystem || null,
-          component: c.component || null,
-          old_serial: c.oldSn || null,
-          new_serial: c.newSn || null,
-          old_fw: c.oldFw || null,
-          new_fw: c.newFw || null,
-          reason: c.reason || null,
-          change_date: c.date || null,
-          performed_by: c.tech || null
-        }
-      });
-    }
-
-    setStatus(`✅ Submitted successfully. Repair UID: <span class="mono">${repairUid}</span>`, true);
-    alert(`Submitted ✅ Repair UID: ${repairUid}`);
-  }
-
-  function resetDraft() {
-    if (!confirm("Clear the saved draft in this browser?")) return;
-    localStorage.removeItem(LS_KEY);
-    location.reload();
-  }
-
-  function wireAutosave() {
-    const ids = ["hullId","location","dateOpened","ticket","techs","program","serviceType","rootCauseCat","issueDesc","rootCauseDetails"];
-    ids.forEach(id => {
-      const node = el(id);
-      node.addEventListener("input", saveToLocal);
-      node.addEventListener("change", saveToLocal);
-    });
-  }
-
-  // init
-  (function init(){
-    if (!el("dateOpened").value) el("dateOpened").value = nowISODate();
-    el("apiBase").value = DEFAULT_API_BASE;
-    el("apiKey").value  = DEFAULT_API_KEY;
-
-    if (!loadFromLocal()) {
-      checklistItems.forEach(i => state.checklist[i] = false);
-      saveToLocal();
-      renderAll();
-    }
-
-    wireAutosave();
-    el("addChangeBtn").addEventListener("click", addComponentChange);
-    el("addCfgBtn").addEventListener("click", addCfgChange);
-    el("resetBtn").addEventListener("click", resetDraft);
-
-    el("submitDbBtn").addEventListener("click", () => {
-      submitToDatabase().catch(e => {
-        console.error(e);
-        setStatus(`❌ Submit failed: <span class="mono">${e.message}</span>`, false);
-        alert(e.message);
-      });
-    });
-
-    el("exportJsonBtn").addEventListener("click", () => {
-      const data = { ...state, meta: gatherMeta() };
-      const hull = (data.meta?.hullId || "R###").replaceAll(" ","_");
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type:"application/json"}));
-      a.download = `gen2_repair_${hull}_${new Date().toISOString().slice(0,10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    });
-
-    el("importJsonBtn").addEventListener("click", () => el("importFile").click());
-    el("importFile").addEventListener("change", (e) => {
-      const f = e.target.files?.[0];
-      if (!f) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        try{
-          const data = JSON.parse(reader.result);
-          Object.assign(state, data);
-          applyMeta(state.meta || {});
-          renderAll();
-          saveToLocal();
-          alert("Imported JSON successfully.");
-        }catch{
-          alert("Import failed: invalid JSON.");
-        }
-      };
-      reader.readAsText(f);
-      e.target.value = "";
-    });
-
-    el("pingDocsBtn").addEventListener("click", () => {
-      window.open(getApiBase() + "/docs", "_blank");
-    });
-
-    el("pingRepairsBtn").addEventListener("click", async () => {
-      try{
-        await apiFetch("/repairs", { method:"GET" });
-        setStatus("GET /repairs returned OK (unexpected). If you see this, your GET returns JSON.", true);
-      }catch(e){
-        // 405 is expected if GET isn't implemented
-        setStatus(`GET /repairs test: ${e.message} (405 is OK)`, true);
-      }
-    });
-  })();
+  el("pingDocsBtn").onclick = () => window.open(el("apiBase").value + "/docs");
+  el("resetBtn").onclick = () => { if(confirm("Clear draft?")) { localStorage.removeItem(LS_KEY); location.reload(); }};
+  
+  el("dateOpened").valueAsDate = new Date();
+  loadLocal();
+  document.querySelectorAll('input, select, textarea').forEach(i => i.addEventListener('input', saveToLocal));
 </script>
 </body>
 </html>
