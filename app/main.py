@@ -20,35 +20,39 @@ from sqlalchemy.orm import sessionmaker, declarative_base, Session
 # 1. Configuration & Database Setup
 # =====================================================
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
-# IMPORTANT: This key must match the one in your HTML exactly
+# DATABASE_URL should be set in Render Env Vars. 
+# Fallback to local sqlite for safety.
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./test.db")
+
+# This must match the key you type into the HTML portal exactly
 API_KEY = os.environ.get("API_KEY", "some-long-random-string")
 
-if not DATABASE_URL:
-    # Fallback for local testing
-    DATABASE_URL = "sqlite:///./test.db"
-
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    DATABASE_URL, 
+    # SQLite specific fix; remove connect_args if using PostgreSQL
+    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 # =====================================================
-# 2. FastAPI Initialization (Fixes NameError)
+# 2. FastAPI Initialization
 # =====================================================
 
-app = FastAPI(title="Gen2 Repair API", version="3.1.0")
+app = FastAPI(title="Gen2 Repair API", version="3.2.0")
 
-# HARDENED CORS: Required for Cloudflare -> Render communication
+# PERMISSIVE CORS: This is critical to fix "Failed to fetch"
+# It allows your Cloudflare domain to send custom headers like X-API-Key
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "X-API-Key", "Authorization"],
+    allow_headers=["Content-Type", "X-API-Key", "Authorization", "Accept"],
 )
 
 # =====================================================
-# 3. Database Models (SQLAlchemy)
+# 3. Database Models
 # =====================================================
 
 class Repair(Base):
@@ -59,7 +63,6 @@ class Repair(Base):
     location = Column(String)
     technicians = Column(String)
     issue_desc = Column(Text)
-    service_type = Column(String)
 
 class ComponentChange(Base):
     __tablename__ = "component_changes"
@@ -78,9 +81,8 @@ class ConfigChange(Base):
     parameter = Column(String)
     old_value = Column(String)
     new_value = Column(String)
-    notes = Column(Text)
 
-# Create tables in DB
+# Create tables
 Base.metadata.create_all(bind=engine)
 
 # =====================================================
@@ -96,7 +98,9 @@ def get_db():
 
 def verify_api_key(request: Request, x_api_key: Optional[str] = Header(None)):
     """
-    Validates API Key but allows OPTIONS (CORS pre-flight) to pass.
+    SECURITY FIX: Browsers send an 'OPTIONS' request before a 'POST'.
+    We must allow OPTIONS requests to pass without an API key check,
+    otherwise the CORS handshake will fail.
     """
     if request.method == "OPTIONS":
         return
@@ -115,7 +119,7 @@ class RepairCreate(BaseModel):
     issue_desc: Optional[str] = None
 
 class ComponentChangeCreate(BaseModel):
-    subsystem: str
+    subsystem: Optional[str] = None
     component: str
     old_serial: Optional[str] = None
     new_serial: Optional[str] = None
@@ -132,22 +136,18 @@ class ConfigChangeCreate(BaseModel):
 
 @app.get("/")
 def read_root():
-    """Confirms API is alive and prevents 404 logs."""
-    return {"status": "online", "message": "Gen2 Repair API v3.1"}
+    return {"status": "online", "message": "Gen2 Repair API v3.2 is running"}
 
 @app.get("/health")
-def health_check():
-    """Endpoint for frontend connectivity testing."""
+def health():
     return {"status": "healthy"}
 
 @app.get("/repairs")
 def list_repairs(db: Session = Depends(get_db), _: None = Depends(verify_api_key)):
-    """Fetch all repairs for the frontend history log."""
     return db.query(Repair).all()
 
 @app.post("/repairs")
 def create_repair(repair: RepairCreate, db: Session = Depends(get_db), _: None = Depends(verify_api_key)):
-    """Creates the master repair record."""
     new_uid = str(uuid.uuid4())
     db_repair = Repair(repair_uid=new_uid, **repair.model_dump())
     db.add(db_repair)
@@ -157,7 +157,6 @@ def create_repair(repair: RepairCreate, db: Session = Depends(get_db), _: None =
 
 @app.post("/repairs/{repair_uid}/component-changes")
 def add_component_change(repair_uid: str, change: ComponentChangeCreate, db: Session = Depends(get_db), _: None = Depends(verify_api_key)):
-    """Adds a hardware swap to a specific repair."""
     db_change = ComponentChange(id=str(uuid.uuid4()), repair_uid=repair_uid, **change.model_dump())
     db.add(db_change)
     db.commit()
@@ -165,7 +164,6 @@ def add_component_change(repair_uid: str, change: ComponentChangeCreate, db: Ses
 
 @app.post("/repairs/{repair_uid}/config-changes")
 def add_config_change(repair_uid: str, change: ConfigChangeCreate, db: Session = Depends(get_db), _: None = Depends(verify_api_key)):
-    """Adds a config parameter change to a specific repair."""
     db_change = ConfigChange(id=str(uuid.uuid4()), repair_uid=repair_uid, **change.model_dump())
     db.add(db_change)
     db.commit()
