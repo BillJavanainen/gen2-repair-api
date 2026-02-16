@@ -1,7 +1,7 @@
 import os
 import uuid
 from datetime import date
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,39 +17,41 @@ from sqlalchemy import (
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 
 # =====================================================
-# Configuration
+# 1. Configuration & Database Setup
 # =====================================================
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
-API_KEY = os.environ.get("API_KEY")
+API_KEY = os.environ.get("API_KEY", "some-long-random-string")
 
 if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL not set")
+    # Fallback to sqlite for local testing if DATABASE_URL is missing
+    DATABASE_URL = "sqlite:///./test.db"
 
 engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(bind=engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# Add this block immediately after creating the app object
+# =====================================================
+# 2. FastAPI Initialization & CORS
+# =====================================================
+
+app = FastAPI(title="Gen2 Repair API", version="3.0.0")
+
+# CORS must be defined immediately after 'app' is created
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all domains. For high security, replace "*" with your workers.dev URL
+    allow_origins=["*"],  # Allows your Cloudflare Worker domain
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.get("/")
-def read_root():
-    return {"status": "ok"}
-
 # =====================================================
-# Database Models
+# 3. Database Models (SQLAlchemy)
 # =====================================================
 
 class Repair(Base):
     __tablename__ = "repairs"
-
     repair_uid = Column(String, primary_key=True, index=True)
     hull_id = Column(String, nullable=False)
     date_opened = Column(Date, nullable=False)
@@ -58,10 +60,8 @@ class Repair(Base):
     service_type = Column(String)
     issue_desc = Column(Text)
 
-
 class ComponentChange(Base):
     __tablename__ = "component_changes"
-
     id = Column(String, primary_key=True, index=True)
     repair_uid = Column(String, ForeignKey("repairs.repair_uid"))
     subsystem = Column(String)
@@ -74,10 +74,8 @@ class ComponentChange(Base):
     change_date = Column(Date)
     performed_by = Column(String)
 
-
 class ConfigChange(Base):
     __tablename__ = "config_changes"
-
     id = Column(String, primary_key=True, index=True)
     repair_uid = Column(String, ForeignKey("repairs.repair_uid"))
     system = Column(String)
@@ -86,11 +84,11 @@ class ConfigChange(Base):
     new_value = Column(String)
     notes = Column(Text)
 
-
+# Create tables if they don't exist
 Base.metadata.create_all(bind=engine)
 
 # =====================================================
-# Dependency
+# 4. Dependencies
 # =====================================================
 
 def get_db():
@@ -100,13 +98,12 @@ def get_db():
     finally:
         db.close()
 
-
 def verify_api_key(x_api_key: Optional[str] = Header(None)):
     if API_KEY and x_api_key != API_KEY:
         raise HTTPException(status_code=403, detail="Invalid API key")
 
 # =====================================================
-# Schemas
+# 5. Pydantic Schemas (Validation)
 # =====================================================
 
 class RepairCreate(BaseModel):
@@ -116,7 +113,6 @@ class RepairCreate(BaseModel):
     technicians: Optional[str] = None
     service_type: Optional[str] = None
     issue_desc: Optional[str] = None
-
 
 class ComponentChangeCreate(BaseModel):
     subsystem: Optional[str] = None
@@ -129,7 +125,6 @@ class ComponentChangeCreate(BaseModel):
     change_date: Optional[date] = None
     performed_by: Optional[str] = None
 
-
 class ConfigChangeCreate(BaseModel):
     system: Optional[str] = None
     parameter: Optional[str] = None
@@ -137,90 +132,77 @@ class ConfigChangeCreate(BaseModel):
     new_value: Optional[str] = None
     notes: Optional[str] = None
 
-
 # =====================================================
-# Routes
+# 6. API Routes
 # =====================================================
 
 @app.get("/")
 def root():
-    return {"ok": True, "service": "gen2-repair-api-3"}
-
+    return {"status": "online", "message": "Gen2 Repair API v3"}
 
 @app.get("/health")
-def health():
+def health_check():
     return {"status": "healthy"}
 
+# --- Repair Routes ---
+
+@app.get("/repairs")
+def list_repairs(
+    db: Session = Depends(get_db), 
+    _: None = Depends(verify_api_key)
+):
+    """Fetch all repairs from the database."""
+    return db.query(Repair).all()
 
 @app.post("/repairs")
 def create_repair(
-    repair: RepairCreate,
-    db: Session = Depends(get_db),
-    _: None = Depends(verify_api_key),
+    repair: RepairCreate, 
+    db: Session = Depends(get_db), 
+    _: None = Depends(verify_api_key)
 ):
-    repair_uid = str(uuid.uuid4())
-
+    """Create a new master repair record."""
+    new_uid = str(uuid.uuid4())
     db_repair = Repair(
-        repair_uid=repair_uid,
-        hull_id=repair.hull_id,
-        date_opened=repair.date_opened,
-        location=repair.location,
-        technicians=repair.technicians,
-        service_type=repair.service_type,
-        issue_desc=repair.issue_desc,
+        repair_uid=new_uid,
+        **repair.model_dump()
     )
-
     db.add(db_repair)
     db.commit()
+    db.refresh(db_repair)
+    return db_repair
 
-    return {"repair_uid": repair_uid}
-
+# --- Sub-item Routes ---
 
 @app.post("/repairs/{repair_uid}/component-changes")
 def add_component_change(
-    repair_uid: str,
-    change: ComponentChangeCreate,
-    db: Session = Depends(get_db),
-    _: None = Depends(verify_api_key),
+    repair_uid: str, 
+    change: ComponentChangeCreate, 
+    db: Session = Depends(get_db), 
+    _: None = Depends(verify_api_key)
 ):
+    """Add a hardware swap record to a specific repair."""
     db_change = ComponentChange(
         id=str(uuid.uuid4()),
         repair_uid=repair_uid,
-        subsystem=change.subsystem,
-        component=change.component,
-        old_serial=change.old_serial,
-        new_serial=change.new_serial,
-        old_fw=change.old_fw,
-        new_fw=change.new_fw,
-        reason=change.reason,
-        change_date=change.change_date,
-        performed_by=change.performed_by,
+        **change.model_dump()
     )
-
     db.add(db_change)
     db.commit()
-
-    return {"status": "component change added"}
-
+    return {"status": "success", "id": db_change.id}
 
 @app.post("/repairs/{repair_uid}/config-changes")
 def add_config_change(
-    repair_uid: str,
-    change: ConfigChangeCreate,
-    db: Session = Depends(get_db),
-    _: None = Depends(verify_api_key),
+    repair_uid: str, 
+    change: ConfigChangeCreate, 
+    db: Session = Depends(get_db), 
+    _: None = Depends(verify_api_key)
 ):
+    """Add a parameter/config change record to a specific repair."""
     db_change = ConfigChange(
         id=str(uuid.uuid4()),
         repair_uid=repair_uid,
-        system=change.system,
-        parameter=change.parameter,
-        old_value=change.old_value,
-        new_value=change.new_value,
-        notes=change.notes,
+        **change.model_dump()
     )
-
     db.add(db_change)
     db.commit()
-
-    return {"status": "config change added"}
+    return {"status": "success", "id": db_change.id}
