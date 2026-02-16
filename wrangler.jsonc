@@ -1,5 +1,5 @@
 {
-  "name": "gen2-repair-api-rev5",
+  "name": "gen2-repair-api",
   "compatibility_date": "2026-02-16",
   "assets": {
     "directory": "./public"
