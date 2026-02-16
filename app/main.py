@@ -30,19 +30,18 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 
-app = FastAPI()
-
-# =====================================================
-# CORS (IMPORTANT FOR WORKERS.DEV FRONTEND)
-# =====================================================
-
+# Add this block immediately after creating the app object
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Allows all domains. For high security, replace "*" with your workers.dev URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/")
+def read_root():
+    return {"status": "ok"}
 
 # =====================================================
 # Database Models
